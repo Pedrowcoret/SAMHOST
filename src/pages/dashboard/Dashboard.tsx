@@ -5,7 +5,7 @@ import VideoPlayer from '../../components/VideoPlayer';
 import {
   Settings, Users, BarChart, FileVideo,
   PlayCircle, Play, Smartphone, RefreshCw,
-  FolderPlus, Calendar, Youtube, Wifi, ArrowLeftRight, Megaphone
+  FolderPlus, Calendar, Youtube, Wifi, ArrowLeftRight, Megaphone, Radio
 } from 'lucide-react';
 
 const Dashboard: React.FC = () => {
@@ -81,6 +81,13 @@ const Dashboard: React.FC = () => {
           <hr className="mb-4" />
 
           <div className="grid grid-cols-3 gap-4">
+            <Link to="/dashboard/iniciar-transmissao" className="flex flex-col items-center justify-center p-3 hover:bg-gray-50 rounded-lg transition-colors">
+              <div className="w-12 h-12 flex items-center justify-center bg-green-100 text-green-600 rounded-full mb-2">
+                <Radio className="h-6 w-6" />
+              </div>
+              <span className="text-sm text-gray-700 text-center">Iniciar Transmissão</span>
+            </Link>
+
             <Link to="/dashboard/dados-conexao" className="flex flex-col items-center justify-center p-3 hover:bg-gray-50 rounded-lg transition-colors">
               <div className="w-12 h-12 flex items-center justify-center bg-primary-100 text-primary-600 rounded-full mb-2">
                 <Settings className="h-6 w-6" />

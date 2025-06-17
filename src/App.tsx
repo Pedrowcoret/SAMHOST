@@ -20,6 +20,7 @@ import Playlists from './pages/dashboard/Playlists';
 import Agendamentos from './pages/dashboard/Agendamentos';
 import Comerciais from './pages/dashboard/Comerciais';
 import DownloadYoutube from './pages/dashboard/DownloadYoutube';
+import IniciarTransmissao from './pages/dashboard/IniciarTransmissao';
 
 // Layouts
 import AuthLayout from './layouts/AuthLayout';
@@ -61,6 +62,7 @@ function App() {
             }
           >
             <Route index element={<Dashboard />} />
+            <Route path="iniciar-transmissao" element={<IniciarTransmissao />} />
             <Route path="dados-conexao" element={<DadosConexao />} />
             <Route path="configuracoes" element={<Configuracoes />} />
             <Route path="players" element={<Players />} />
