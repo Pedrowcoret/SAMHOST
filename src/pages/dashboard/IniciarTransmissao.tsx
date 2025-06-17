@@ -3,15 +3,7 @@ import { ChevronLeft, Play, Square, Settings, Copy, ExternalLink, Radio, Users, 
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
-
-interface StreamingData {
-  login: string;
-  codigo_servidor: string;
-  status: 'online' | 'offline';
-  espectadores: number;
-  bitrate: number;
-  uptime: string;
-}
+import { useStream } from '../../context/StreamContext';
 
 interface ServerData {
   nome: string;
@@ -28,10 +20,9 @@ interface ConfigData {
 
 const IniciarTransmissao: React.FC = () => {
   const { user } = useAuth();
-  const [streamingData, setStreamingData] = useState<StreamingData | null>(null);
+  const { streamData, startStream, stopStream } = useStream();
   const [serverData, setServerData] = useState<ServerData | null>(null);
   const [configData, setConfigData] = useState<ConfigData | null>(null);
-  const [isStreaming, setIsStreaming] = useState(false);
   const [loading, setLoading] = useState(false);
   const [streamUrls, setStreamUrls] = useState({
     rtmp: '',
@@ -42,16 +33,6 @@ const IniciarTransmissao: React.FC = () => {
 
   // Mock data - em produção, isso viria da API
   useEffect(() => {
-    // Simular carregamento dos dados do usuário
-    const mockStreamingData: StreamingData = {
-      login: user?.email?.split('@')[0] || 'usuario',
-      codigo_servidor: 'srv001',
-      status: 'offline',
-      espectadores: 0,
-      bitrate: 0,
-      uptime: '00:00:00'
-    };
-
     const mockServerData: ServerData = {
       nome: 'servidor1',
       nome_principal: 'stream',
@@ -65,21 +46,21 @@ const IniciarTransmissao: React.FC = () => {
       dominio_padrao: 'exemplo.com'
     };
 
-    setStreamingData(mockStreamingData);
     setServerData(mockServerData);
     setConfigData(mockConfigData);
 
     // Gerar URLs baseadas nos dados
-    if (mockStreamingData && mockServerData && mockConfigData) {
+    if (user && mockServerData && mockConfigData) {
+      const userLogin = user.email?.split('@')[0] || 'usuario';
       const servidor = mockServerData.nome_principal 
         ? `${mockServerData.nome_principal.toLowerCase()}.${mockConfigData.dominio_padrao}`
         : `${mockServerData.nome.toLowerCase()}.${mockConfigData.dominio_padrao}`;
 
       const urls = {
-        rtmp: `rtmp://${servidor}:1935/${mockStreamingData.login}/${mockStreamingData.login}`,
-        http: `https://${servidor}/${mockStreamingData.login}/${mockStreamingData.login}/playlist.m3u8`,
-        embed: `<iframe src="https://${servidor}/player/embed/?stream=${mockStreamingData.login}" width="100%" height="400" frameborder="0" allowfullscreen></iframe>`,
-        share: `https://${servidor}/watch?id=${mockStreamingData.login}`
+        rtmp: `rtmp://${servidor}:1935/${userLogin}/${userLogin}`,
+        http: `https://${servidor}/${userLogin}/${userLogin}/playlist.m3u8`,
+        embed: `<iframe src="https://${servidor}/player/embed/?stream=${userLogin}" width="100%" height="400" frameborder="0" allowfullscreen></iframe>`,
+        share: `https://${servidor}/watch?id=${userLogin}`
       };
 
       setStreamUrls(urls);
@@ -93,8 +74,7 @@ const IniciarTransmissao: React.FC = () => {
       // Simulando delay de processamento
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      setIsStreaming(true);
-      setStreamingData(prev => prev ? { ...prev, status: 'online' } : null);
+      startStream(); // Usar o contexto para iniciar a transmissão
       toast.success('Transmissão iniciada com sucesso!');
     } catch (error) {
       toast.error('Erro ao iniciar transmissão');
@@ -109,8 +89,7 @@ const IniciarTransmissao: React.FC = () => {
       // Aqui você faria a chamada SSH para parar o stream
       await new Promise(resolve => setTimeout(resolve, 1500));
       
-      setIsStreaming(false);
-      setStreamingData(prev => prev ? { ...prev, status: 'offline', espectadores: 0, bitrate: 0 } : null);
+      stopStream(); // Usar o contexto para parar a transmissão
       toast.success('Transmissão finalizada');
     } catch (error) {
       toast.error('Erro ao finalizar transmissão');
@@ -124,20 +103,12 @@ const IniciarTransmissao: React.FC = () => {
     toast.success(`${label} copiado para a área de transferência!`);
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'online': return 'text-green-600 bg-green-100';
-      case 'offline': return 'text-red-600 bg-red-100';
-      default: return 'text-gray-600 bg-gray-100';
-    }
+  const getStatusColor = (status: boolean) => {
+    return status ? 'text-green-600 bg-green-100' : 'text-red-600 bg-red-100';
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'online': return <Wifi className="h-4 w-4" />;
-      case 'offline': return <WifiOff className="h-4 w-4" />;
-      default: return <Radio className="h-4 w-4" />;
-    }
+  const getStatusIcon = (status: boolean) => {
+    return status ? <Wifi className="h-4 w-4" /> : <WifiOff className="h-4 w-4" />;
   };
 
   return (
@@ -156,12 +127,10 @@ const IniciarTransmissao: React.FC = () => {
         </h1>
         
         <div className="flex items-center space-x-4">
-          {streamingData && (
-            <div className={`px-4 py-2 rounded-full flex items-center space-x-2 ${getStatusColor(streamingData.status)}`}>
-              {getStatusIcon(streamingData.status)}
-              <span className="font-medium capitalize">{streamingData.status}</span>
-            </div>
-          )}
+          <div className={`px-4 py-2 rounded-full flex items-center space-x-2 ${getStatusColor(streamData.isLive)}`}>
+            {getStatusIcon(streamData.isLive)}
+            <span className="font-medium">{streamData.isLive ? 'Online' : 'Offline'}</span>
+          </div>
         </div>
       </div>
 
@@ -174,7 +143,7 @@ const IniciarTransmissao: React.FC = () => {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-500">Espectadores</p>
-              <p className="text-2xl font-bold text-gray-900">{streamingData?.espectadores || 0}</p>
+              <p className="text-2xl font-bold text-gray-900">{streamData.viewers}</p>
             </div>
           </div>
         </div>
@@ -186,7 +155,7 @@ const IniciarTransmissao: React.FC = () => {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-500">Bitrate</p>
-              <p className="text-2xl font-bold text-gray-900">{streamingData?.bitrate || 0} kbps</p>
+              <p className="text-2xl font-bold text-gray-900">{streamData.bitrate} kbps</p>
             </div>
           </div>
         </div>
@@ -198,7 +167,7 @@ const IniciarTransmissao: React.FC = () => {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-500">Tempo Online</p>
-              <p className="text-2xl font-bold text-gray-900">{streamingData?.uptime || '00:00:00'}</p>
+              <p className="text-2xl font-bold text-gray-900">{streamData.uptime}</p>
             </div>
           </div>
         </div>
@@ -210,7 +179,7 @@ const IniciarTransmissao: React.FC = () => {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-500">Status</p>
-              <p className="text-2xl font-bold text-gray-900 capitalize">{streamingData?.status || 'Offline'}</p>
+              <p className="text-2xl font-bold text-gray-900">{streamData.isLive ? 'Online' : 'Offline'}</p>
             </div>
           </div>
         </div>
@@ -221,7 +190,7 @@ const IniciarTransmissao: React.FC = () => {
         <h2 className="text-xl font-semibold text-gray-800 mb-6">Controle de Transmissão</h2>
         
         <div className="flex items-center justify-center space-x-4">
-          {!isStreaming ? (
+          {!streamData.isLive ? (
             <button
               onClick={handleStartStream}
               disabled={loading}
@@ -370,7 +339,7 @@ const IniciarTransmissao: React.FC = () => {
           </div>
           <div className="flex items-start">
             <div className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold mr-3 mt-0.5">4</div>
-            <p>Monitore as estatísticas em tempo real no painel acima</p>
+            <p>Monitore as estatísticas em tempo real no painel acima e no player do dashboard principal</p>
           </div>
         </div>
       </div>

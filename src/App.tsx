@@ -12,6 +12,7 @@ import AuthCallback from './pages/auth/AuthCallback';
 
 // Dashboard Pages
 import Dashboard from './pages/dashboard/Dashboard';
+import IniciarTransmissao from './pages/dashboard/IniciarTransmissao';
 import DadosConexao from './pages/dashboard/DadosConexao';
 import Configuracoes from './pages/dashboard/Configuracoes';
 import Players from './pages/dashboard/Players';
@@ -20,7 +21,6 @@ import Playlists from './pages/dashboard/Playlists';
 import Agendamentos from './pages/dashboard/Agendamentos';
 import Comerciais from './pages/dashboard/Comerciais';
 import DownloadYoutube from './pages/dashboard/DownloadYoutube';
-import IniciarTransmissao from './pages/dashboard/IniciarTransmissao';
 
 // Layouts
 import AuthLayout from './layouts/AuthLayout';
@@ -28,6 +28,7 @@ import DashboardLayout from './layouts/DashboardLayout';
 
 // Context
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { StreamProvider } from './context/StreamContext';
 import PrivateRoute from './components/PrivateRoute';
 
 // Componente que redireciona baseado na autenticação
@@ -40,43 +41,45 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        <Routes>
-          {/* Auth Routes */}
-          <Route path="/" element={<AuthLayout />}>
-            <Route index element={<RedirectToProperPlace />} />
-            <Route path="login" element={<Login />} />
-            <Route path="forgot-password" element={<ForgotPassword />} />
-            <Route path="register" element={<Register />} />
-            <Route path="confirm" element={<ConfirmEmail />} />
-            <Route path="reset-password" element={<ResetPassword />} />
-            <Route path="auth/callback" element={<AuthCallback />} />
-          </Route>
+        <StreamProvider>
+          <Routes>
+            {/* Auth Routes */}
+            <Route path="/" element={<AuthLayout />}>
+              <Route index element={<RedirectToProperPlace />} />
+              <Route path="login" element={<Login />} />
+              <Route path="forgot-password" element={<ForgotPassword />} />
+              <Route path="register" element={<Register />} />
+              <Route path="confirm" element={<ConfirmEmail />} />
+              <Route path="reset-password" element={<ResetPassword />} />
+              <Route path="auth/callback" element={<AuthCallback />} />
+            </Route>
 
-          {/* Dashboard Routes */}
-          <Route
-            path="/dashboard"
-            element={
-              <PrivateRoute>
-                <DashboardLayout />
-              </PrivateRoute>
-            }
-          >
-            <Route index element={<Dashboard />} />
-            <Route path="iniciar-transmissao" element={<IniciarTransmissao />} />
-            <Route path="dados-conexao" element={<DadosConexao />} />
-            <Route path="configuracoes" element={<Configuracoes />} />
-            <Route path="players" element={<Players />} />
-            <Route path="gerenciarvideos" element={<GerenciarVideos />} />
-            <Route path="playlists" element={<Playlists />} />
-            <Route path="agendamentos" element={<Agendamentos />} /> 
-            <Route path="comerciais" element={<Comerciais />} />
-            <Route path="downloadyoutube" element={<DownloadYoutube />} />
-          </Route>
+            {/* Dashboard Routes */}
+            <Route
+              path="/dashboard"
+              element={
+                <PrivateRoute>
+                  <DashboardLayout />
+                </PrivateRoute>
+              }
+            >
+              <Route index element={<Dashboard />} />
+              <Route path="iniciar-transmissao" element={<IniciarTransmissao />} />
+              <Route path="dados-conexao" element={<DadosConexao />} />
+              <Route path="configuracoes" element={<Configuracoes />} />
+              <Route path="players" element={<Players />} />
+              <Route path="gerenciarvideos" element={<GerenciarVideos />} />
+              <Route path="playlists" element={<Playlists />} />
+              <Route path="agendamentos" element={<Agendamentos />} /> 
+              <Route path="comerciais" element={<Comerciais />} />
+              <Route path="downloadyoutube" element={<DownloadYoutube />} />
+            </Route>
 
-          {/* Fallback route */}
-          <Route path="*" element={<Navigate to="/login" />} />
-        </Routes>
-        <ToastContainer position="top-right" autoClose={3000} theme="colored" />
+            {/* Fallback route */}
+            <Route path="*" element={<Navigate to="/login" />} />
+          </Routes>
+          <ToastContainer position="top-right" autoClose={3000} theme="colored" />
+        </StreamProvider>
       </AuthProvider>
     </Router>
   );
