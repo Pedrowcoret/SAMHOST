@@ -1,62 +1,25 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, Volume2, VolumeX, Maximize, Minimize, Radio, Wifi } from 'lucide-react';
+import { Play, Pause, Volume2, VolumeX, Maximize, Minimize, Radio, Wifi, RefreshCw, Activity } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-
-interface StreamStatus {
-  isLive: boolean;
-  streamUrl: string;
-  title: string;
-  viewers: number;
-  uptime: string;
-}
+import { useStream } from '../context/StreamContext';
 
 const VideoPlayer: React.FC = () => {
   const { user } = useAuth();
+  const { streamData } = useStream();
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [volume, setVolume] = useState(1);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [streamStatus, setStreamStatus] = useState<StreamStatus>({
-    isLive: false,
-    streamUrl: '',
-    title: '',
-    viewers: 0,
-    uptime: '00:00:00'
-  });
   const [isLoading, setIsLoading] = useState(false);
+  const [connectionError, setConnectionError] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Verificar status da transmissão periodicamente
-  useEffect(() => {
-    const checkStreamStatus = async () => {
-      try {
-        // Simular verificação do status da transmissão
-        // Em produção, isso seria uma chamada para sua API
-        const mockStreamData = {
-          isLive: Math.random() > 0.7, // 30% chance de estar ao vivo para demonstração
-          streamUrl: `https://stream.exemplo.com/${user?.email?.split('@')[0]}/playlist.m3u8`,
-          title: `Transmissão ao vivo de ${user?.nome || 'Usuário'}`,
-          viewers: Math.floor(Math.random() * 100),
-          uptime: '01:23:45'
-        };
-
-        setStreamStatus(mockStreamData);
-      } catch (error) {
-        console.error('Erro ao verificar status da transmissão:', error);
-      }
-    };
-
-    // Verificar imediatamente
-    checkStreamStatus();
-
-    // Verificar a cada 30 segundos
-    const interval = setInterval(checkStreamStatus, 30000);
-
-    return () => clearInterval(interval);
-  }, [user]);
+  // Usar dados do contexto de stream
+  const wowzaStreamUrl = streamData.isLive ? 
+    `https://wowza.exemplo.com:443/live/${streamData.streamName}/playlist.m3u8` : '';
 
   useEffect(() => {
     const video = videoRef.current;
@@ -74,10 +37,20 @@ const VideoPlayer: React.FC = () => {
       setIsMuted(video.muted);
     };
 
-    const handleLoadStart = () => setIsLoading(true);
+    const handleLoadStart = () => {
+      setIsLoading(true);
+      setConnectionError(false);
+    };
     const handleCanPlay = () => setIsLoading(false);
     const handleWaiting = () => setIsLoading(true);
-    const handlePlaying = () => setIsLoading(false);
+    const handlePlaying = () => {
+      setIsLoading(false);
+      setConnectionError(false);
+    };
+    const handleError = () => {
+      setIsLoading(false);
+      setConnectionError(true);
+    };
 
     video.addEventListener('timeupdate', updateTime);
     video.addEventListener('play', handlePlay);
@@ -87,6 +60,7 @@ const VideoPlayer: React.FC = () => {
     video.addEventListener('canplay', handleCanPlay);
     video.addEventListener('waiting', handleWaiting);
     video.addEventListener('playing', handlePlaying);
+    video.addEventListener('error', handleError);
 
     return () => {
       video.removeEventListener('timeupdate', updateTime);
@@ -97,13 +71,14 @@ const VideoPlayer: React.FC = () => {
       video.removeEventListener('canplay', handleCanPlay);
       video.removeEventListener('waiting', handleWaiting);
       video.removeEventListener('playing', handlePlaying);
+      video.removeEventListener('error', handleError);
     };
   }, []);
 
   // Auto-play quando a transmissão estiver ao vivo
   useEffect(() => {
-    if (streamStatus.isLive && videoRef.current && streamStatus.streamUrl) {
-      videoRef.current.src = streamStatus.streamUrl;
+    if (streamData.isLive && videoRef.current && wowzaStreamUrl) {
+      videoRef.current.src = wowzaStreamUrl;
       videoRef.current.load();
       
       // Tentar reproduzir automaticamente
@@ -114,17 +89,18 @@ const VideoPlayer: React.FC = () => {
         });
       }
     }
-  }, [streamStatus.isLive, streamStatus.streamUrl]);
+  }, [streamData.isLive, wowzaStreamUrl]);
 
   const togglePlay = () => {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video || !streamData.isLive) return;
 
     if (isPlaying) {
       video.pause();
     } else {
       video.play().catch(error => {
         console.error('Erro ao reproduzir:', error);
+        setConnectionError(true);
       });
     }
   };
@@ -149,15 +125,6 @@ const VideoPlayer: React.FC = () => {
     } else if (video.muted) {
       video.muted = false;
     }
-  };
-
-  const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const video = videoRef.current;
-    if (!video || streamStatus.isLive) return; // Não permitir seek em transmissões ao vivo
-
-    const newTime = parseFloat(e.target.value);
-    video.currentTime = newTime;
-    setCurrentTime(newTime);
   };
 
   const toggleFullscreen = () => {
@@ -193,15 +160,19 @@ const VideoPlayer: React.FC = () => {
 
   const refreshStream = () => {
     const video = videoRef.current;
-    if (!video || !streamStatus.streamUrl) return;
+    if (!video || !wowzaStreamUrl) return;
 
     setIsLoading(true);
+    setConnectionError(false);
     video.load();
     video.play().catch(error => {
       console.error('Erro ao recarregar stream:', error);
+      setConnectionError(true);
       setIsLoading(false);
     });
   };
+
+  const connectedPlatforms = streamData.platforms.filter(p => p.status === 'connected');
 
   return (
     <div 
@@ -210,25 +181,65 @@ const VideoPlayer: React.FC = () => {
       style={{ aspectRatio: '16/9' }}
     >
       {/* Status da Transmissão */}
-      {streamStatus.isLive && (
-        <div className="absolute top-4 left-4 z-20 flex items-center space-x-2">
+      {streamData.isLive && (
+        <div className="absolute top-4 left-4 z-20 flex flex-col space-y-2">
           <div className="bg-red-600 text-white px-3 py-1 rounded-full flex items-center space-x-2 text-sm font-medium">
             <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
             <span>AO VIVO</span>
           </div>
+          
           <div className="bg-black bg-opacity-60 text-white px-3 py-1 rounded-full flex items-center space-x-1 text-sm">
             <Wifi className="h-3 w-3" />
-            <span>{streamStatus.viewers} espectadores</span>
+            <span>{streamData.viewers} espectadores</span>
           </div>
+
+          {connectedPlatforms.length > 0 && (
+            <div className="bg-black bg-opacity-60 text-white px-3 py-1 rounded-full flex items-center space-x-1 text-sm">
+              <Activity className="h-3 w-3" />
+              <span>{connectedPlatforms.length} plataformas</span>
+            </div>
+          )}
         </div>
       )}
+
+      {/* Wowza Status */}
+      <div className="absolute top-4 right-4 z-20">
+        <div className={`px-3 py-1 rounded-full flex items-center space-x-2 text-sm font-medium ${
+          streamData.wowzaStatus === 'online' ? 'bg-green-600 text-white' :
+          streamData.wowzaStatus === 'error' ? 'bg-red-600 text-white' :
+          'bg-gray-600 text-white'
+        }`}>
+          <Activity className="h-3 w-3" />
+          <span>Wowza {streamData.wowzaStatus}</span>
+        </div>
+      </div>
 
       {/* Loading Indicator */}
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center z-10 bg-black bg-opacity-50">
           <div className="flex flex-col items-center space-y-2">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
-            <span className="text-white text-sm">Carregando...</span>
+            <span className="text-white text-sm">Conectando ao Wowza...</span>
+          </div>
+        </div>
+      )}
+
+      {/* Connection Error */}
+      {connectionError && (
+        <div className="absolute inset-0 flex items-center justify-center z-10 bg-black bg-opacity-75">
+          <div className="flex flex-col items-center space-y-4 text-white text-center">
+            <Wifi className="h-12 w-12 text-red-500" />
+            <div>
+              <h3 className="text-lg font-semibold mb-2">Erro de Conexão</h3>
+              <p className="text-sm text-gray-300 mb-4">Não foi possível conectar ao stream Wowza</p>
+              <button
+                onClick={refreshStream}
+                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors flex items-center space-x-2"
+              >
+                <RefreshCw className="h-4 w-4" />
+                <span>Tentar Novamente</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -237,24 +248,27 @@ const VideoPlayer: React.FC = () => {
       <video
         ref={videoRef}
         className="w-full h-full"
-        src={streamStatus.isLive ? streamStatus.streamUrl : undefined}
+        src={streamData.isLive ? wowzaStreamUrl : undefined}
         playsInline
         crossOrigin="anonymous"
       />
 
       {/* Placeholder quando não há transmissão */}
-      {!streamStatus.isLive && (
+      {!streamData.isLive && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900 text-white">
           <Radio className="h-16 w-16 mb-4 text-gray-400" />
           <h3 className="text-xl font-semibold mb-2">Nenhuma transmissão ativa</h3>
-          <p className="text-gray-400 text-center max-w-md">
-            Inicie uma transmissão para visualizar o conteúdo ao vivo aqui
+          <p className="text-gray-400 text-center max-w-md mb-4">
+            Inicie uma transmissão no Wowza para visualizar o conteúdo ao vivo aqui
           </p>
+          <div className="text-center text-sm text-gray-500">
+            <p>Status do Wowza: <span className="font-medium">{streamData.wowzaStatus}</span></p>
+          </div>
           <button
             onClick={() => window.location.href = '/dashboard/iniciar-transmissao'}
             className="mt-4 px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
           >
-            Iniciar Transmissão
+            Configurar Transmissão
           </button>
         </div>
       )}
@@ -262,37 +276,21 @@ const VideoPlayer: React.FC = () => {
       {/* Controls Overlay */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-0 hover:opacity-100 transition-opacity flex flex-col justify-end">
         <div className="p-4 space-y-2">
-          {/* Progress Bar - Ocultar para transmissões ao vivo */}
-          {!streamStatus.isLive && (
-            <div className="flex items-center">
-              <input
-                type="range"
-                min="0"
-                max={duration || 100}
-                value={currentTime}
-                onChange={handleTimeChange}
-                className="w-full h-1 bg-gray-500 rounded-full appearance-none cursor-pointer"
-                style={{
-                  background: `linear-gradient(to right, #ff940a ${(currentTime / (duration || 1)) * 100}%, rgba(255, 255, 255, 0.3) 0%)`
-                }}
-              />
-            </div>
-          )}
-          
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              {streamStatus.isLive ? (
+              {streamData.isLive ? (
                 <button
                   onClick={refreshStream}
                   className="text-white hover:text-accent transition-colors"
                   title="Recarregar transmissão"
                 >
-                  <Radio className="h-6 w-6" />
+                  <RefreshCw className="h-6 w-6" />
                 </button>
               ) : (
                 <button
                   onClick={togglePlay}
                   className="text-white hover:text-accent transition-colors"
+                  disabled={!streamData.isLive}
                 >
                   {isPlaying ? (
                     <Pause className="h-6 w-6" />
@@ -329,14 +327,20 @@ const VideoPlayer: React.FC = () => {
               </div>
               
               <div className="text-white text-sm">
-                {streamStatus.isLive ? (
-                  <span className="flex items-center space-x-1">
+                {streamData.isLive ? (
+                  <span className="flex items-center space-x-2">
                     <span>Ao vivo</span>
                     <span>•</span>
-                    <span>{streamStatus.uptime}</span>
+                    <span>{streamData.uptime}</span>
+                    {streamData.bitrate > 0 && (
+                      <>
+                        <span>•</span>
+                        <span>{streamData.bitrate} kbps</span>
+                      </>
+                    )}
                   </span>
                 ) : (
-                  <span>{formatTime(currentTime)} / {formatTime(duration)}</span>
+                  <span>Offline</span>
                 )}
               </div>
             </div>

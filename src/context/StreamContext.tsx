@@ -1,7 +1,16 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 
-interface StreamData {
+interface StreamPlatform {
+  id: string;
+  name: string;
+  enabled: boolean;
+  rtmpUrl?: string;
+  streamKey?: string;
+  status: 'connected' | 'disconnected' | 'error' | 'connecting';
+}
+
+interface WowzaStreamData {
   isLive: boolean;
   streamUrl: string;
   title: string;
@@ -9,14 +18,22 @@ interface StreamData {
   uptime: string;
   bitrate: number;
   startTime?: Date;
+  duration: number;
+  platforms: StreamPlatform[];
+  wowzaStatus: 'online' | 'offline' | 'error';
+  applicationName: string;
+  streamName: string;
 }
 
 interface StreamContextType {
-  streamData: StreamData;
-  updateStreamData: (data: Partial<StreamData>) => void;
-  startStream: () => void;
-  stopStream: () => void;
+  streamData: WowzaStreamData;
+  updateStreamData: (data: Partial<WowzaStreamData>) => void;
+  startStream: (platforms: string[]) => Promise<void>;
+  stopStream: () => Promise<void>;
   refreshStreamStatus: () => Promise<void>;
+  updatePlatformConfig: (platformId: string, config: Partial<StreamPlatform>) => void;
+  connectToPlatform: (platformId: string) => Promise<void>;
+  disconnectFromPlatform: (platformId: string) => Promise<void>;
 }
 
 const StreamContext = createContext<StreamContextType | null>(null);
@@ -33,43 +50,127 @@ interface StreamProviderProps {
   children: ReactNode;
 }
 
+const defaultPlatforms: StreamPlatform[] = [
+  { id: 'youtube', name: 'YouTube', enabled: false, status: 'disconnected' },
+  { id: 'instagram', name: 'Instagram', enabled: false, status: 'disconnected' },
+  { id: 'facebook', name: 'Facebook', enabled: false, status: 'disconnected' },
+  { id: 'twitch', name: 'Twitch', enabled: false, status: 'disconnected' },
+  { id: 'vimeo', name: 'Vimeo', enabled: false, status: 'disconnected' },
+  { id: 'tiktok', name: 'TikTok', enabled: false, status: 'disconnected' },
+  { id: 'periscope', name: 'Periscope', enabled: false, status: 'disconnected' },
+  { id: 'kwai', name: 'Kwai', enabled: false, status: 'disconnected' },
+  { id: 'steam', name: 'Steam Valve', enabled: false, status: 'disconnected' },
+  { id: 'rtmp', name: 'RTMP Próprio', enabled: false, status: 'disconnected' }
+];
+
 export const StreamProvider: React.FC<StreamProviderProps> = ({ children }) => {
   const { user } = useAuth();
-  const [streamData, setStreamData] = useState<StreamData>({
+  const [streamData, setStreamData] = useState<WowzaStreamData>({
     isLive: false,
     streamUrl: '',
     title: '',
     viewers: 0,
     uptime: '00:00:00',
-    bitrate: 0
+    bitrate: 0,
+    duration: 0,
+    platforms: defaultPlatforms,
+    wowzaStatus: 'offline',
+    applicationName: 'live',
+    streamName: ''
   });
 
-  const updateStreamData = (data: Partial<StreamData>) => {
+  const updateStreamData = (data: Partial<WowzaStreamData>) => {
     setStreamData(prev => ({ ...prev, ...data }));
   };
 
-  const startStream = () => {
+  const updatePlatformConfig = (platformId: string, config: Partial<StreamPlatform>) => {
+    setStreamData(prev => ({
+      ...prev,
+      platforms: prev.platforms.map(platform =>
+        platform.id === platformId ? { ...platform, ...config } : platform
+      )
+    }));
+  };
+
+  const connectToPlatform = async (platformId: string) => {
+    updatePlatformConfig(platformId, { status: 'connecting' });
+    
+    try {
+      // Simular conexão com a plataforma via Wowza
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Em produção, aqui seria feita a chamada para a API do Wowza
+      // para configurar o push para a plataforma específica
+      
+      updatePlatformConfig(platformId, { status: 'connected' });
+    } catch (error) {
+      updatePlatformConfig(platformId, { status: 'error' });
+      throw error;
+    }
+  };
+
+  const disconnectFromPlatform = async (platformId: string) => {
+    try {
+      // Simular desconexão da plataforma via Wowza
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      updatePlatformConfig(platformId, { status: 'disconnected' });
+    } catch (error) {
+      updatePlatformConfig(platformId, { status: 'error' });
+      throw error;
+    }
+  };
+
+  const startStream = async (selectedPlatforms: string[]) => {
     const userLogin = user?.email?.split('@')[0] || 'usuario';
-    const streamUrl = `https://stream.exemplo.com/${userLogin}/playlist.m3u8`;
+    const streamName = `${userLogin}_${Date.now()}`;
+    const wowzaUrl = `rtmp://wowza.exemplo.com:1935/live/${streamName}`;
     
     updateStreamData({
       isLive: true,
-      streamUrl,
+      streamUrl: wowzaUrl,
+      streamName,
       title: `Transmissão ao vivo de ${user?.nome || 'Usuário'}`,
       startTime: new Date(),
       viewers: 0,
-      bitrate: 2500
+      bitrate: 2500,
+      wowzaStatus: 'online'
     });
+
+    // Conectar às plataformas selecionadas
+    for (const platformId of selectedPlatforms) {
+      if (streamData.platforms.find(p => p.id === platformId)?.enabled) {
+        try {
+          await connectToPlatform(platformId);
+        } catch (error) {
+          console.error(`Erro ao conectar à plataforma ${platformId}:`, error);
+        }
+      }
+    }
   };
 
-  const stopStream = () => {
+  const stopStream = async () => {
+    // Desconectar de todas as plataformas
+    const connectedPlatforms = streamData.platforms.filter(p => p.status === 'connected');
+    
+    for (const platform of connectedPlatforms) {
+      try {
+        await disconnectFromPlatform(platform.id);
+      } catch (error) {
+        console.error(`Erro ao desconectar da plataforma ${platform.id}:`, error);
+      }
+    }
+
     updateStreamData({
       isLive: false,
       streamUrl: '',
       viewers: 0,
       uptime: '00:00:00',
       bitrate: 0,
-      startTime: undefined
+      duration: 0,
+      startTime: undefined,
+      wowzaStatus: 'offline',
+      streamName: ''
     });
   };
 
@@ -77,20 +178,26 @@ export const StreamProvider: React.FC<StreamProviderProps> = ({ children }) => {
     if (!streamData.isLive) return;
 
     try {
-      // Simular chamada para API para obter dados atualizados
-      // Em produção, isso seria uma chamada real para sua API
-      const mockData = {
+      // Simular chamada para API do Wowza para obter dados atualizados
+      const mockWowzaResponse = {
         viewers: Math.floor(Math.random() * 150) + 10,
         bitrate: 2500 + Math.floor(Math.random() * 500),
+        status: 'online' as const,
+        connectedClients: Math.floor(Math.random() * 50) + 5
       };
 
-      updateStreamData(mockData);
+      updateStreamData({
+        viewers: mockWowzaResponse.viewers,
+        bitrate: mockWowzaResponse.bitrate,
+        wowzaStatus: mockWowzaResponse.status
+      });
     } catch (error) {
       console.error('Erro ao atualizar status da transmissão:', error);
+      updateStreamData({ wowzaStatus: 'error' });
     }
   };
 
-  // Atualizar uptime quando a transmissão estiver ativa
+  // Atualizar uptime e duração quando a transmissão estiver ativa
   useEffect(() => {
     if (!streamData.isLive || !streamData.startTime) return;
 
@@ -102,8 +209,9 @@ export const StreamProvider: React.FC<StreamProviderProps> = ({ children }) => {
       const seconds = Math.floor((diff % (1000 * 60)) / 1000);
       
       const uptime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+      const duration = Math.floor(diff / 1000);
       
-      updateStreamData({ uptime });
+      updateStreamData({ uptime, duration });
     }, 1000);
 
     return () => clearInterval(interval);
@@ -124,7 +232,10 @@ export const StreamProvider: React.FC<StreamProviderProps> = ({ children }) => {
       updateStreamData,
       startStream,
       stopStream,
-      refreshStreamStatus
+      refreshStreamStatus,
+      updatePlatformConfig,
+      connectToPlatform,
+      disconnectFromPlatform
     }}>
       {children}
     </StreamContext.Provider>
