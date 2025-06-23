@@ -10,7 +10,7 @@ interface StreamPlatform {
   status: 'connected' | 'disconnected' | 'error' | 'connecting';
 }
 
-interface WowzaStreamData {
+interface StreamData {
   isLive: boolean;
   streamUrl: string;
   title: string;
@@ -26,8 +26,8 @@ interface WowzaStreamData {
 }
 
 interface StreamContextType {
-  streamData: WowzaStreamData;
-  updateStreamData: (data: Partial<WowzaStreamData>) => void;
+  streamData: StreamData;
+  updateStreamData: (data: Partial<StreamData>) => void;
   startStream: (platforms: string[]) => Promise<void>;
   stopStream: () => Promise<void>;
   refreshStreamStatus: () => Promise<void>;
@@ -64,8 +64,8 @@ const defaultPlatforms: StreamPlatform[] = [
 ];
 
 export const StreamProvider: React.FC<StreamProviderProps> = ({ children }) => {
-  const { user } = useAuth();
-  const [streamData, setStreamData] = useState<WowzaStreamData>({
+  const { user, getToken } = useAuth();
+  const [streamData, setStreamData] = useState<StreamData>({
     isLive: false,
     streamUrl: '',
     title: '',
@@ -79,7 +79,7 @@ export const StreamProvider: React.FC<StreamProviderProps> = ({ children }) => {
     streamName: ''
   });
 
-  const updateStreamData = (data: Partial<WowzaStreamData>) => {
+  const updateStreamData = (data: Partial<StreamData>) => {
     setStreamData(prev => ({ ...prev, ...data }));
   };
 
@@ -96,11 +96,8 @@ export const StreamProvider: React.FC<StreamProviderProps> = ({ children }) => {
     updatePlatformConfig(platformId, { status: 'connecting' });
     
     try {
-      // Simular conexão com a plataforma via Wowza
+      // Simular conexão com a plataforma
       await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Em produção, aqui seria feita a chamada para a API do Wowza
-      // para configurar o push para a plataforma específica
       
       updatePlatformConfig(platformId, { status: 'connected' });
     } catch (error) {
@@ -111,7 +108,7 @@ export const StreamProvider: React.FC<StreamProviderProps> = ({ children }) => {
 
   const disconnectFromPlatform = async (platformId: string) => {
     try {
-      // Simular desconexão da plataforma via Wowza
+      // Simular desconexão da plataforma
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       updatePlatformConfig(platformId, { status: 'disconnected' });
@@ -122,75 +119,123 @@ export const StreamProvider: React.FC<StreamProviderProps> = ({ children }) => {
   };
 
   const startStream = async (selectedPlatforms: string[]) => {
-    const userLogin = user?.email?.split('@')[0] || 'usuario';
-    const streamName = `${userLogin}_${Date.now()}`;
-    const wowzaUrl = `rtmp://wowza.exemplo.com:1935/live/${streamName}`;
-    
-    updateStreamData({
-      isLive: true,
-      streamUrl: wowzaUrl,
-      streamName,
-      title: `Transmissão ao vivo de ${user?.nome || 'Usuário'}`,
-      startTime: new Date(),
-      viewers: 0,
-      bitrate: 2500,
-      wowzaStatus: 'online'
-    });
+    try {
+      const token = await getToken();
+      const response = await fetch('/api/streaming/start', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          titulo: 'Transmissão ao vivo',
+          platform_ids: selectedPlatforms
+        })
+      });
 
-    // Conectar às plataformas selecionadas
-    for (const platformId of selectedPlatforms) {
-      if (streamData.platforms.find(p => p.id === platformId)?.enabled) {
-        try {
-          await connectToPlatform(platformId);
-        } catch (error) {
-          console.error(`Erro ao conectar à plataforma ${platformId}:`, error);
+      const result = await response.json();
+
+      if (result.success) {
+        updateStreamData({
+          isLive: true,
+          streamUrl: result.wowza_data?.rtmpUrl || '',
+          streamName: result.wowza_data?.streamName || '',
+          title: result.transmission.titulo,
+          startTime: new Date(),
+          viewers: 0,
+          bitrate: result.wowza_data?.bitrate || 2500,
+          wowzaStatus: 'online'
+        });
+
+        // Conectar às plataformas selecionadas
+        for (const platformId of selectedPlatforms) {
+          try {
+            await connectToPlatform(platformId);
+          } catch (error) {
+            console.error(`Erro ao conectar à plataforma ${platformId}:`, error);
+          }
         }
+      } else {
+        throw new Error(result.error || 'Erro ao iniciar transmissão');
       }
+    } catch (error) {
+      console.error('Erro ao iniciar stream:', error);
+      throw error;
     }
   };
 
   const stopStream = async () => {
-    // Desconectar de todas as plataformas
-    const connectedPlatforms = streamData.platforms.filter(p => p.status === 'connected');
-    
-    for (const platform of connectedPlatforms) {
-      try {
-        await disconnectFromPlatform(platform.id);
-      } catch (error) {
-        console.error(`Erro ao desconectar da plataforma ${platform.id}:`, error);
-      }
-    }
+    try {
+      const token = await getToken();
+      const response = await fetch('/api/streaming/stop', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        }
+      });
 
-    updateStreamData({
-      isLive: false,
-      streamUrl: '',
-      viewers: 0,
-      uptime: '00:00:00',
-      bitrate: 0,
-      duration: 0,
-      startTime: undefined,
-      wowzaStatus: 'offline',
-      streamName: ''
-    });
+      const result = await response.json();
+
+      if (result.success) {
+        // Desconectar de todas as plataformas
+        const connectedPlatforms = streamData.platforms.filter(p => p.status === 'connected');
+        
+        for (const platform of connectedPlatforms) {
+          try {
+            await disconnectFromPlatform(platform.id);
+          } catch (error) {
+            console.error(`Erro ao desconectar da plataforma ${platform.id}:`, error);
+          }
+        }
+
+        updateStreamData({
+          isLive: false,
+          streamUrl: '',
+          viewers: 0,
+          uptime: '00:00:00',
+          bitrate: 0,
+          duration: 0,
+          startTime: undefined,
+          wowzaStatus: 'offline',
+          streamName: ''
+        });
+      } else {
+        throw new Error(result.error || 'Erro ao parar transmissão');
+      }
+    } catch (error) {
+      console.error('Erro ao parar stream:', error);
+      throw error;
+    }
   };
 
   const refreshStreamStatus = async () => {
-    if (!streamData.isLive) return;
-
     try {
-      // Simular chamada para API do Wowza para obter dados atualizados
-      const mockWowzaResponse = {
-        viewers: Math.floor(Math.random() * 150) + 10,
-        bitrate: 2500 + Math.floor(Math.random() * 500),
-        status: 'online' as const,
-        connectedClients: Math.floor(Math.random() * 50) + 5
-      };
-
-      updateStreamData({
-        viewers: mockWowzaResponse.viewers,
-        bitrate: mockWowzaResponse.bitrate,
-        wowzaStatus: mockWowzaResponse.status
+      const token = await getToken();
+      const response = await fetch('/api/streaming/status', {
+        headers: { Authorization: `Bearer ${token}` }
       });
+      const result = await response.json();
+
+      if (result.success && result.is_live && result.transmission) {
+        const transmission = result.transmission;
+        updateStreamData({
+          isLive: true,
+          viewers: transmission.stats.viewers,
+          bitrate: transmission.stats.bitrate,
+          uptime: transmission.stats.uptime,
+          title: transmission.titulo,
+          wowzaStatus: 'online'
+        });
+      } else {
+        updateStreamData({
+          isLive: false,
+          viewers: 0,
+          bitrate: 0,
+          uptime: '00:00:00',
+          wowzaStatus: 'offline'
+        });
+      }
     } catch (error) {
       console.error('Erro ao atualizar status da transmissão:', error);
       updateStreamData({ wowzaStatus: 'error' });
@@ -225,6 +270,11 @@ export const StreamProvider: React.FC<StreamProviderProps> = ({ children }) => {
 
     return () => clearInterval(interval);
   }, [streamData.isLive]);
+
+  // Verificar status inicial
+  useEffect(() => {
+    refreshStreamStatus();
+  }, []);
 
   return (
     <StreamContext.Provider value={{

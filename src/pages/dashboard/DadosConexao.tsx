@@ -9,17 +9,15 @@ const DadosConexao: React.FC = () => {
   
   const userLogin = user?.email?.split('@')[0] || 'usuario';
   
-  const wowzaData = {
-    serverUrl: 'wowza.exemplo.com',
+  // Dados de conexão para OBS/Streamlabs (sem expor dados do Wowza)
+  const connectionData = {
+    serverUrl: 'streaming.exemplo.com',
     port: '1935',
     application: 'live',
     streamName: `${userLogin}_stream`,
-    rtmpUrl: `rtmp://wowza.exemplo.com:1935/live/${userLogin}_stream`,
-    hlsUrl: `https://wowza.exemplo.com:443/live/${userLogin}_stream/playlist.m3u8`,
-    restApiUrl: 'https://wowza.exemplo.com:8087/v2',
-    adminUrl: 'https://wowza.exemplo.com:8088/enginemanager',
-    username: 'admin',
-    password: 'password123'
+    rtmpUrl: `rtmp://streaming.exemplo.com:1935/live`,
+    streamKey: `${userLogin}_${Date.now()}`,
+    hlsUrl: `https://streaming.exemplo.com/live/${userLogin}_stream/playlist.m3u8`
   };
 
   const copyToClipboard = (text: string, label: string) => {
@@ -38,27 +36,27 @@ const DadosConexao: React.FC = () => {
 
       <div className="flex items-center space-x-3">
         <Server className="h-8 w-8 text-primary-600" />
-        <h1 className="text-3xl font-bold text-gray-900">Dados de Conexão Wowza</h1>
+        <h1 className="text-3xl font-bold text-gray-900">Dados de Conexão</h1>
       </div>
 
-      {/* Wowza Server Information */}
+      {/* Informações do Servidor */}
       <div className="bg-white rounded-lg shadow-sm p-6">
         <div className="flex items-center space-x-2 mb-4">
           <Activity className="h-6 w-6 text-primary-600" />
-          <h2 className="text-xl font-semibold text-gray-800">Informações do Servidor Wowza</h2>
+          <h2 className="text-xl font-semibold text-gray-800">Informações do Servidor</h2>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-4">
             <div>
-              <h3 className="text-sm font-medium text-gray-500">Servidor Wowza</h3>
+              <h3 className="text-sm font-medium text-gray-500">Servidor de Streaming</h3>
               <div className="mt-1 flex items-center">
                 <span className="text-gray-900 font-mono bg-gray-100 px-3 py-2 rounded-md w-full">
-                  {wowzaData.serverUrl}
+                  {connectionData.serverUrl}
                 </span>
                 <button 
                   className="ml-2 text-primary-600 hover:text-primary-800"
-                  onClick={() => copyToClipboard(wowzaData.serverUrl, 'Servidor Wowza')}
+                  onClick={() => copyToClipboard(connectionData.serverUrl, 'Servidor')}
                 >
                   <Copy className="h-4 w-4" />
                 </button>
@@ -69,11 +67,11 @@ const DadosConexao: React.FC = () => {
               <h3 className="text-sm font-medium text-gray-500">Porta RTMP</h3>
               <div className="mt-1 flex items-center">
                 <span className="text-gray-900 font-mono bg-gray-100 px-3 py-2 rounded-md w-full">
-                  {wowzaData.port}
+                  {connectionData.port}
                 </span>
                 <button 
                   className="ml-2 text-primary-600 hover:text-primary-800"
-                  onClick={() => copyToClipboard(wowzaData.port, 'Porta')}
+                  onClick={() => copyToClipboard(connectionData.port, 'Porta')}
                 >
                   <Copy className="h-4 w-4" />
                 </button>
@@ -84,11 +82,11 @@ const DadosConexao: React.FC = () => {
               <h3 className="text-sm font-medium text-gray-500">Aplicação</h3>
               <div className="mt-1 flex items-center">
                 <span className="text-gray-900 font-mono bg-gray-100 px-3 py-2 rounded-md w-full">
-                  {wowzaData.application}
+                  {connectionData.application}
                 </span>
                 <button 
                   className="ml-2 text-primary-600 hover:text-primary-800"
-                  onClick={() => copyToClipboard(wowzaData.application, 'Aplicação')}
+                  onClick={() => copyToClipboard(connectionData.application, 'Aplicação')}
                 >
                   <Copy className="h-4 w-4" />
                 </button>
@@ -101,11 +99,11 @@ const DadosConexao: React.FC = () => {
               <h3 className="text-sm font-medium text-gray-500">Nome do Stream</h3>
               <div className="mt-1 flex items-center">
                 <span className="text-gray-900 font-mono bg-gray-100 px-3 py-2 rounded-md w-full">
-                  {wowzaData.streamName}
+                  {connectionData.streamName}
                 </span>
                 <button 
                   className="ml-2 text-primary-600 hover:text-primary-800"
-                  onClick={() => copyToClipboard(wowzaData.streamName, 'Nome do Stream')}
+                  onClick={() => copyToClipboard(connectionData.streamName, 'Nome do Stream')}
                 >
                   <Copy className="h-4 w-4" />
                 </button>
@@ -113,14 +111,14 @@ const DadosConexao: React.FC = () => {
             </div>
             
             <div>
-              <h3 className="text-sm font-medium text-gray-500">Usuário Admin</h3>
+              <h3 className="text-sm font-medium text-gray-500">Chave de Transmissão</h3>
               <div className="mt-1 flex items-center">
                 <span className="text-gray-900 font-mono bg-gray-100 px-3 py-2 rounded-md w-full">
-                  {wowzaData.username}
+                  {connectionData.streamKey}
                 </span>
                 <button 
                   className="ml-2 text-primary-600 hover:text-primary-800"
-                  onClick={() => copyToClipboard(wowzaData.username, 'Usuário')}
+                  onClick={() => copyToClipboard(connectionData.streamKey, 'Chave de Transmissão')}
                 >
                   <Copy className="h-4 w-4" />
                 </button>
@@ -128,17 +126,11 @@ const DadosConexao: React.FC = () => {
             </div>
             
             <div>
-              <h3 className="text-sm font-medium text-gray-500">Senha Admin</h3>
+              <h3 className="text-sm font-medium text-gray-500">Status</h3>
               <div className="mt-1 flex items-center">
-                <span className="text-gray-900 font-mono bg-gray-100 px-3 py-2 rounded-md w-full">
-                  ••••••••••••
+                <span className="text-gray-900 bg-green-100 text-green-800 px-3 py-2 rounded-md w-full">
+                  Servidor Online
                 </span>
-                <button 
-                  className="ml-2 text-primary-600 hover:text-primary-800"
-                  onClick={() => copyToClipboard(wowzaData.password, 'Senha')}
-                >
-                  <Copy className="h-4 w-4" />
-                </button>
               </div>
             </div>
           </div>
@@ -154,14 +146,14 @@ const DadosConexao: React.FC = () => {
         
         <div className="space-y-6">
           <div>
-            <h3 className="text-sm font-medium text-gray-500">URL RTMP (Para OBS/Streamlabs)</h3>
+            <h3 className="text-sm font-medium text-gray-500">URL do Servidor (Para OBS/Streamlabs)</h3>
             <div className="mt-1 flex items-center">
               <span className="text-gray-900 font-mono bg-gray-100 px-3 py-2 rounded-md w-full text-sm">
-                {wowzaData.rtmpUrl}
+                {connectionData.rtmpUrl}
               </span>
               <button 
                 className="ml-2 text-primary-600 hover:text-primary-800"
-                onClick={() => copyToClipboard(wowzaData.rtmpUrl, 'URL RTMP')}
+                onClick={() => copyToClipboard(connectionData.rtmpUrl, 'URL do Servidor')}
               >
                 <Copy className="h-4 w-4" />
               </button>
@@ -169,14 +161,14 @@ const DadosConexao: React.FC = () => {
           </div>
           
           <div>
-            <h3 className="text-sm font-medium text-gray-500">URL HLS (Para reprodução)</h3>
+            <h3 className="text-sm font-medium text-gray-500">Chave de Transmissão (Stream Key)</h3>
             <div className="mt-1 flex items-center">
               <span className="text-gray-900 font-mono bg-gray-100 px-3 py-2 rounded-md w-full text-sm">
-                {wowzaData.hlsUrl}
+                {connectionData.streamKey}
               </span>
               <button 
                 className="ml-2 text-primary-600 hover:text-primary-800"
-                onClick={() => copyToClipboard(wowzaData.hlsUrl, 'URL HLS')}
+                onClick={() => copyToClipboard(connectionData.streamKey, 'Chave de Transmissão')}
               >
                 <Copy className="h-4 w-4" />
               </button>
@@ -184,29 +176,14 @@ const DadosConexao: React.FC = () => {
           </div>
           
           <div>
-            <h3 className="text-sm font-medium text-gray-500">REST API URL</h3>
+            <h3 className="text-sm font-medium text-gray-500">URL de Visualização (HLS)</h3>
             <div className="mt-1 flex items-center">
               <span className="text-gray-900 font-mono bg-gray-100 px-3 py-2 rounded-md w-full text-sm">
-                {wowzaData.restApiUrl}
+                {connectionData.hlsUrl}
               </span>
               <button 
                 className="ml-2 text-primary-600 hover:text-primary-800"
-                onClick={() => copyToClipboard(wowzaData.restApiUrl, 'REST API URL')}
-              >
-                <Copy className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-          
-          <div>
-            <h3 className="text-sm font-medium text-gray-500">Engine Manager URL</h3>
-            <div className="mt-1 flex items-center">
-              <span className="text-gray-900 font-mono bg-gray-100 px-3 py-2 rounded-md w-full text-sm">
-                {wowzaData.adminUrl}
-              </span>
-              <button 
-                className="ml-2 text-primary-600 hover:text-primary-800"
-                onClick={() => copyToClipboard(wowzaData.adminUrl, 'Engine Manager URL')}
+                onClick={() => copyToClipboard(connectionData.hlsUrl, 'URL de Visualização')}
               >
                 <Copy className="h-4 w-4" />
               </button>
@@ -229,8 +206,8 @@ const DadosConexao: React.FC = () => {
             
             <div className="bg-gray-50 p-4 rounded-md">
               <ul className="list-disc list-inside space-y-2 text-gray-700">
-                <li>Servidor: <span className="font-medium font-mono">{wowzaData.rtmpUrl}</span></li>
-                <li>Chave de transmissão: <span className="font-medium">Deixar em branco ou usar nome do stream</span></li>
+                <li>Servidor: <span className="font-medium font-mono">{connectionData.rtmpUrl}</span></li>
+                <li>Chave de transmissão: <span className="font-medium font-mono">{connectionData.streamKey}</span></li>
                 <li>Taxa de bits de vídeo: <span className="font-medium">2500-5000 Kbps</span></li>
                 <li>Taxa de bits de áudio: <span className="font-medium">128-320 Kbps</span></li>
                 <li>Resolução: <span className="font-medium">1920x1080 (1080p) ou 1280x720 (720p)</span></li>
@@ -247,8 +224,8 @@ const DadosConexao: React.FC = () => {
             
             <div className="bg-gray-50 p-4 rounded-md">
               <ul className="list-disc list-inside space-y-2 text-gray-700">
-                <li>Servidor: <span className="font-medium font-mono">{wowzaData.rtmpUrl}</span></li>
-                <li>Chave de transmissão: <span className="font-medium">Deixar em branco</span></li>
+                <li>Servidor: <span className="font-medium font-mono">{connectionData.rtmpUrl}</span></li>
+                <li>Chave de transmissão: <span className="font-medium font-mono">{connectionData.streamKey}</span></li>
                 <li>Taxa de bits de vídeo: <span className="font-medium">2500-5000 Kbps</span></li>
                 <li>Taxa de bits de áudio: <span className="font-medium">128-320 Kbps</span></li>
                 <li>Resolução: <span className="font-medium">1920x1080 (1080p) ou 1280x720 (720p)</span></li>
@@ -260,30 +237,41 @@ const DadosConexao: React.FC = () => {
           </div>
 
           <div>
-            <h3 className="text-lg font-medium text-gray-800 mb-2">Wowza Engine Manager</h3>
-            <p className="text-gray-600 mb-4">Acesso ao painel administrativo do Wowza</p>
+            <h3 className="text-lg font-medium text-gray-800 mb-2">Qualidade de Transmissão</h3>
+            <p className="text-gray-600 mb-4">Configurações baseadas na sua conexão de internet</p>
             
             <div className="bg-gray-50 p-4 rounded-md">
-              <ul className="list-disc list-inside space-y-2 text-gray-700">
-                <li>URL: <span className="font-medium font-mono">{wowzaData.adminUrl}</span></li>
-                <li>Usuário: <span className="font-medium">{wowzaData.username}</span></li>
-                <li>Senha: <span className="font-medium">••••••••••••</span></li>
-                <li>Use este painel para monitorar streams, configurar aplicações e gerenciar o servidor</li>
-              </ul>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="text-center">
+                  <h4 className="font-medium text-gray-800">Básica</h4>
+                  <p className="text-sm text-gray-600">720p @ 30fps</p>
+                  <p className="text-sm text-gray-600">1500-2500 Kbps</p>
+                </div>
+                <div className="text-center">
+                  <h4 className="font-medium text-gray-800">Boa</h4>
+                  <p className="text-sm text-gray-600">1080p @ 30fps</p>
+                  <p className="text-sm text-gray-600">2500-4000 Kbps</p>
+                </div>
+                <div className="text-center">
+                  <h4 className="font-medium text-gray-800">Excelente</h4>
+                  <p className="text-sm text-gray-600">1080p @ 60fps</p>
+                  <p className="text-sm text-gray-600">4000-6000 Kbps</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
       {/* Informações Importantes */}
-      <div className="bg-yellow-50 rounded-lg p-6 border border-yellow-200">
-        <h3 className="text-lg font-semibold text-yellow-900 mb-4">⚠️ Informações Importantes</h3>
-        <div className="space-y-2 text-yellow-800">
-          <p>• Certifique-se de que o servidor Wowza está rodando antes de iniciar a transmissão</p>
-          <p>• As configurações de bitrate devem ser ajustadas conforme sua conexão de internet</p>
-          <p>• Para transmissões em múltiplas plataformas, o servidor Wowza fará o push automático</p>
-          <p>• Monitore o uso de CPU e memória do servidor durante transmissões longas</p>
-          <p>• Mantenha backups regulares das configurações do Wowza</p>
+      <div className="bg-blue-50 rounded-lg p-6 border border-blue-200">
+        <h3 className="text-lg font-semibold text-blue-900 mb-4">📋 Instruções de Uso</h3>
+        <div className="space-y-2 text-blue-800">
+          <p>• Configure seu OBS/Streamlabs com os dados acima</p>
+          <p>• Inicie a transmissão no seu software primeiro</p>
+          <p>• Em seguida, configure as plataformas desejadas na seção "Iniciar Transmissão"</p>
+          <p>• O sistema irá distribuir automaticamente para todas as plataformas configuradas</p>
+          <p>• Monitore as estatísticas em tempo real no dashboard</p>
         </div>
       </div>
     </div>
